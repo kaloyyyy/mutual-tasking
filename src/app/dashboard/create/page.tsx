@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useRouter } from "next/navigation";
+import { generateUniqueSlug } from "@/lib/lib";
 
 export default function CreateProject() {
   const [name, setName] = useState("");
@@ -10,13 +11,40 @@ export default function CreateProject() {
 
   const handleSubmit = async () => {
     const user = (await supabase.auth.getUser()).data.user;
-    const { error } = await supabase.from("projects").insert({
-      name,
-      description,
-      owner_id: user?.id,
-    });
-    if (error) alert(error.message);
-    else router.push("/dashboard");
+    if (!user) {
+      alert("You must be logged in to create a project.");
+      return;
+    }
+
+    // fetch existing slugs to ensure uniqueness
+    const { data: existingProjects, error: fetchError } = await supabase
+      .from("projects")
+      .select("slug");
+
+    if (fetchError) {
+      alert(fetchError.message);
+      return;
+    }
+
+    const existingSlugs = existingProjects?.map((p) => p.slug) || [];
+    const slug = generateUniqueSlug(name, existingSlugs);
+
+    const { data, error } = await supabase
+      .from("projects")
+      .insert({
+        name,
+        description,
+        slug,
+        owner_id: user.id,
+      })
+      .select("slug")
+      .single();
+
+    if (error) {
+      alert(error.message);
+    } else {
+      router.push(`/dashboard/${data.slug}`);
+    }
   };
 
   return (
@@ -35,7 +63,11 @@ export default function CreateProject() {
         onChange={(e) => setDescription(e.target.value)}
         className="border p-2 w-full mb-2 rounded"
       />
-      <button onClick={handleSubmit} className="bg-blue-500 text-white p-2 rounded">
+      <button
+        onClick={handleSubmit}
+        className="bg-blue-500 text-white p-2 rounded"
+        disabled={!name.trim()}
+      >
         Create
       </button>
     </div>

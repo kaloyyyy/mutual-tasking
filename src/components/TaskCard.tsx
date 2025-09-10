@@ -1,14 +1,20 @@
+"use client";
 import Link from "next/link";
 
-export default function TaskCard({ task, projectId }: { task: any; projectId: string }) {
+export default function TaskCard({ task, projectSlug }: { task: any; projectSlug: string }) {
   return (
     <Link
-      href={`/dashboard/${projectId}/tasks/${task.id}`}
-      className="p-4 bg-gray-800 shadow hover:shadow-lg rounded-md transition"
+      href={`/dashboard/${projectSlug}/tasks/${task.slug}`}
+      className="block border p-4 rounded shadow hover:bg-gray-800 hover:text-white transition-colors"
     >
-      <h4 className="font-bold text-gray-100">{task.title}</h4>
-      <p className="text-gray-300">{task.description}</p>
-      <p className="text-sm text-gray-400 mt-1">{task.status}</p>
+      <h4 className="font-bold text-lg">{task.title}</h4>
+      <p className="text-sm text-gray-400">{task.description}</p>
+      <p className="text-xs text-gray-500 mt-2">
+        Status: <span className="capitalize">{task.status}</span>
+      </p>
+      {task.due_date && (
+        <p className="text-xs text-gray-500">Due: {new Date(task.due_date).toLocaleDateString()}</p>
+      )}
     </Link>
   );
 }
