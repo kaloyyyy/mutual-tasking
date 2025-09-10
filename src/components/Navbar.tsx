@@ -6,13 +6,42 @@ import { supabase } from "@/lib/supabaseClient";
 
 export default function Navbar() {
   const [user, setUser] = useState<any>(null);
+  const [username, setUsername] = useState<string | null>(null);
   const router = useRouter();
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => setUser(data.session?.user));
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user || null);
+    // get current session user
+    supabase.auth.getSession().then(async ({ data }) => {
+      const u = data.session?.user;
+      setUser(u);
+
+      if (u) {
+        // fetch profile
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("username")
+          .eq("id", u.id)
+          .single();
+        setUsername(profile?.username || null);
+      }
     });
+
+    // listen to auth changes
+    const { data: listener } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      const u = session?.user || null;
+      setUser(u);
+      if (u) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("username")
+          .eq("id", u.id)
+          .single();
+        setUsername(profile?.username || null);
+      } else {
+        setUsername(null);
+      }
+    });
+
     return () => listener.subscription.unsubscribe();
   }, []);
 
@@ -39,7 +68,7 @@ export default function Navbar() {
               href="/profile"
               className="text-gray-100 hover:text-indigo-400 transition font-medium"
             >
-              Profile
+              {username || "Profile"}
             </Link>
             <button
               onClick={handleLogout}
