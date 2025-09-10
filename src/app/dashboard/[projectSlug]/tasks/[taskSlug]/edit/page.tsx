@@ -1,14 +1,17 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useParams, useRouter } from "next/navigation";
 import { generateUniqueSlug } from "@/lib/lib";
 
-export default function CreateTask() {
-  const { projectSlug } = useParams() as { projectSlug: string };
+export default function EditTaskPage() {
+  const { projectSlug, taskSlug } = useParams() as {
+    projectSlug: string;
+    taskSlug: string;
+  };
   const router = useRouter();
 
-  const [projectId, setProjectId] = useState<string | null>(null);
+  const [task, setTask] = useState<any>(null);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [dueDate, setDueDate] = useState("");
@@ -16,7 +19,7 @@ export default function CreateTask() {
   const [assignees, setAssignees] = useState<string[]>([]);
   const [members, setMembers] = useState<any[]>([]);
 
-  // fetch project ID and members
+  // fetch task + project members
   useEffect(() => {
     const fetchData = async () => {
       const { data: project } = await supabase
@@ -25,79 +28,95 @@ export default function CreateTask() {
         .eq("slug", projectSlug)
         .single();
 
-      if (project) {
-        setProjectId(project.id);
+      if (!project) return;
 
-        // fetch project members and their profiles
-        const { data: membersData, error: membersError } = await supabase
-          .from("project_members")
-          .select("user_id, profiles!project_members_user_id_fkey(id, username, email)")
-          .eq("project_id", project.id);
+      // fetch task
+      const { data: task } = await supabase
+        .from("tasks")
+        .select("*")
+        .eq("slug", taskSlug)
+        .eq("project_id", project.id)
+        .single();
 
-        if (membersError) {
-          console.error("Error fetching project members:", membersError.message);
-          return;
-        }
-
-        setMembers(membersData || []);
+      if (task) {
+        setTask(task);
+        setTitle(task.title);
+        setDescription(task.description || "");
+        setDueDate(task.due_date || "");
+        setPriority(task.priority || "medium");
       }
+
+      // fetch members (profiles only)
+      const { data: members } = await supabase
+        .from("project_members")
+        .select("user_id, profiles(id, username)")
+        .eq("project_id", project.id);
+
+      setMembers(members || []);
+
+      // fetch task assignees
+      const { data: taskAssignees } = await supabase
+        .from("task_assignees")
+        .select("user_id")
+        .eq("task_id", task.id);
+
+      setAssignees(taskAssignees?.map((a) => a.user_id) || []);
     };
 
     fetchData();
-  }, [projectSlug]);
+  }, [projectSlug, taskSlug]);
 
-  const handleSubmit = async () => {
-    if (!projectId) {
-      alert("Project not found");
-      return;
+  const handleUpdate = async () => {
+    if (!task) return;
+
+    // check slug uniqueness if title changed
+    let slug = task.slug;
+    if (title !== task.title) {
+      const { data: existingTasks } = await supabase
+        .from("tasks")
+        .select("slug")
+        .eq("project_id", task.project_id);
+
+      slug = generateUniqueSlug(title, existingTasks?.map((t) => t.slug) || []);
     }
 
-    // check existing slugs to generate unique one
-    const { data: existingTasks } = await supabase
+    const { error } = await supabase
       .from("tasks")
-      .select("slug")
-      .eq("project_id", projectId);
-
-    const slug = generateUniqueSlug(title, existingTasks?.map((t) => t.slug) || []);
-
-    const { data: task, error } = await supabase
-      .from("tasks")
-      .insert({
+      .update({
         title,
         description,
-        project_id: projectId,
-        slug,
         due_date: dueDate || null,
         priority,
+        slug,
       })
-      .select("id")
-      .single();
+      .eq("id", task.id);
 
     if (error) {
       alert(error.message);
       return;
     }
 
-    // insert assignees into task_assignees
-    if (task && assignees.length > 0) {
-      const { error: assignError } = await supabase.from("task_assignees").insert(
+    // reset task assignees
+    await supabase.from("task_assignees").delete().eq("task_id", task.id);
+
+    if (assignees.length > 0) {
+      await supabase.from("task_assignees").insert(
         assignees.map((userId) => ({
           task_id: task.id,
           user_id: userId,
         }))
       );
-
-      if (assignError) {
-        alert(assignError.message);
-      }
     }
 
-    router.push(`/dashboard/${projectSlug}`);
+    router.push(`/dashboard/${projectSlug}/tasks/${slug}`);
   };
+
+  if (!task) return <div>Loading...</div>;
 
   return (
     <div className="max-w-md mx-auto">
-      <h2 className="text-xl font-bold mb-4">Create Task</h2>
+      <h2 className="text-xl font-bold mb-4">Edit Task</h2>
+
       <input
         type="text"
         placeholder="Task Title"
@@ -113,10 +132,11 @@ export default function CreateTask() {
       />
       <input
         type="date"
-        value={dueDate}
+        value={dueDate || ""}
         onChange={(e) => setDueDate(e.target.value)}
         className="border p-2 w-full mb-2 rounded"
       />
+
       <select
         value={priority}
         onChange={(e) => setPriority(e.target.value)}
@@ -138,17 +158,16 @@ export default function CreateTask() {
       >
         {members.map((m) => (
           <option key={m.user_id} value={m.user_id}>
-            {m.profiles?.username || m.profiles?.email}
+            {m.profiles?.username || "No username"}
           </option>
         ))}
       </select>
 
       <button
-        onClick={handleSubmit}
-        className="bg-blue-500 text-white p-2 rounded w-full"
-        disabled={!projectId}
+        onClick={handleUpdate}
+        className="bg-green-500 text-white p-2 rounded w-full"
       >
-        Create Task
+        Save Changes
       </button>
     </div>
   );

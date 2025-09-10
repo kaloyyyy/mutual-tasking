@@ -7,12 +7,15 @@ import Link from "next/link";
 
 export default function ProjectDetail() {
   const params = useParams();
-  const projectSlug = params.projectSlug as string; // now we're using slug
+  const projectSlug = params.projectSlug as string;
   const [project, setProject] = useState<any>(null);
   const [tasks, setTasks] = useState<any[]>([]);
+  const [members, setMembers] = useState<any[]>([]);
+  const [isOwner, setIsOwner] = useState(false);
+  const [newMemberEmail, setNewMemberEmail] = useState("");
 
+  // fetch project + tasks + members
   const fetchData = async () => {
-    // fetch project by slug
     const { data: projectData, error: projectError } = await supabase
       .from("projects")
       .select("*")
@@ -27,23 +30,87 @@ export default function ProjectDetail() {
     if (projectData) {
       setProject(projectData);
 
-      // fetch tasks by project id
+      // fetch tasks
       const { data: tasksData, error: tasksError } = await supabase
         .from("tasks")
         .select("*")
         .eq("project_id", projectData.id);
 
-      if (tasksError) {
-        console.error("Error fetching tasks:", tasksError.message);
-      }
-
+      if (tasksError) console.error("Error fetching tasks:", tasksError.message);
       setTasks(tasksData || []);
+
+      // fetch project members
+      const { data: membersData, error: membersError } = await supabase
+        .from("project_members")
+        .select("user_id, profiles(id, username)")
+        .eq("project_id", projectData.id);
+
+
+      if (membersError) console.error("Error fetching members:", membersError.message);
+      setMembers(membersData || []);
+
+      // check if current user is owner
+      const { data: user } = await supabase.auth.getUser();
+      setIsOwner(user?.user?.id === projectData.owner_id);
     }
   };
 
   useEffect(() => {
     fetchData();
   }, [projectSlug]);
+
+  const handleAddMember = async () => {
+    if (!newMemberEmail || !project) return;
+
+    // lookup profile by email
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("id, username, email")
+      .eq("email", newMemberEmail)
+      .single();
+
+    if (profileError || !profile) {
+      alert("User not found");
+      return;
+    }
+
+    // check if user already a member
+    if (members.find((m) => m.user_id === profile.id)) {
+      alert("User is already a member");
+      return;
+    }
+
+    const { error } = await supabase.from("project_members").insert({
+      project_id: project.id,
+      user_id: profile.id,
+      role: "member",
+    });
+
+    if (error) {
+      alert("Failed to add member: " + error.message);
+      return;
+    }
+
+    setMembers([...members, { user_id: profile.id, profiles: profile }]);
+    setNewMemberEmail("");
+  };
+
+  const handleRemoveMember = async (userId: string) => {
+    if (!project) return;
+
+    const { error } = await supabase
+      .from("project_members")
+      .delete()
+      .eq("project_id", project.id)
+      .eq("user_id", userId);
+
+    if (error) {
+      alert("Failed to remove member: " + error.message);
+      return;
+    }
+
+    setMembers(members.filter((m) => m.user_id !== userId));
+  };
 
   if (!project) return <div>Loading...</div>;
 
@@ -67,6 +134,43 @@ export default function ProjectDetail() {
           <TaskCard key={task.id} task={task} projectSlug={project.slug} />
         ))}
       </div>
+
+      {isOwner && (
+        <div className="mt-6">
+          <h3 className="text-xl font-bold mb-2">Project Members</h3>
+          <ul className="mb-4">
+            {members.map((m) => (
+              <li key={m.user_id} className="flex justify-between items-center mb-1">
+                {m.profiles?.username || m.user_id}
+                {isOwner && (
+                  <button
+                    onClick={() => handleRemoveMember(m.user_id)}
+                    className="text-xs px-2 py-1 bg-red-600 rounded hover:bg-red-500"
+                  >
+                    Remove
+                  </button>
+                )}
+              </li>
+            ))}
+
+          </ul>
+          <div className="flex gap-2">
+            <input
+              type="email"
+              placeholder="User Email"
+              value={newMemberEmail}
+              onChange={(e) => setNewMemberEmail(e.target.value)}
+              className="border p-2 rounded flex-1"
+            />
+            <button
+              onClick={handleAddMember}
+              className="bg-blue-500 text-white px-4 rounded"
+            >
+              Add Member
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
