@@ -10,26 +10,24 @@ export default function CreateProject() {
   const router = useRouter();
 
   const handleSubmit = async () => {
-    const user = (await supabase.auth.getUser()).data.user;
+    const { data: userData } = await supabase.auth.getUser();
+    const user = userData?.user;
+
     if (!user) {
       alert("You must be logged in to create a project.");
       return;
     }
 
-    // fetch existing slugs to ensure uniqueness
-    const { data: existingProjects, error: fetchError } = await supabase
+    // Fetch existing project slugs to ensure uniqueness
+    const { data: existingProjects } = await supabase
       .from("projects")
       .select("slug");
-
-    if (fetchError) {
-      alert(fetchError.message);
-      return;
-    }
-
     const existingSlugs = existingProjects?.map((p) => p.slug) || [];
+
     const slug = generateUniqueSlug(name, existingSlugs);
 
-    const { data, error } = await supabase
+    // Insert new project
+    const { data: project, error: projectError } = await supabase
       .from("projects")
       .insert({
         name,
@@ -37,14 +35,26 @@ export default function CreateProject() {
         slug,
         owner_id: user.id,
       })
-      .select("slug")
+      .select("id, slug")
       .single();
 
-    if (error) {
-      alert(error.message);
-    } else {
-      router.push(`/dashboard/${data.slug}`);
+    if (projectError || !project) {
+      alert(projectError?.message || "Failed to create project.");
+      return;
     }
+
+    // Automatically add owner as a member
+    const { error: memberError } = await supabase.from("project_members").insert({
+      project_id: project.id,
+      user_id: user.id,
+      role: "owner",
+    });
+
+    if (memberError) {
+      console.error("Failed to assign owner as member:", memberError.message);
+    }
+
+    router.push(`/dashboard/${project.slug}`);
   };
 
   return (

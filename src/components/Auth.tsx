@@ -38,7 +38,7 @@ export default function Auth() {
   };
 
   return (
-    <div className="flex flex-col gap-2 w-80">
+    <div className="flex justify-center align-center flex-col gap-2 w-80">
       <input
         type="email"
         placeholder="Email"

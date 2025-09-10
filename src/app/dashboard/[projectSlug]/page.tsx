@@ -11,11 +11,17 @@ export default function ProjectDetail() {
   const [project, setProject] = useState<any>(null);
   const [tasks, setTasks] = useState<any[]>([]);
   const [members, setMembers] = useState<any[]>([]);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [isOwner, setIsOwner] = useState(false);
   const [newMemberEmail, setNewMemberEmail] = useState("");
 
-  // fetch project + tasks + members
   const fetchData = async () => {
+    // get current user
+    const { data: userData } = await supabase.auth.getUser();
+    const userId = userData?.user?.id || null;
+    setCurrentUserId(userId);
+
+    // fetch project
     const { data: projectData, error: projectError } = await supabase
       .from("projects")
       .select("*")
@@ -27,32 +33,26 @@ export default function ProjectDetail() {
       return;
     }
 
-    if (projectData) {
-      setProject(projectData);
+    if (!projectData) return;
 
-      // fetch tasks
-      const { data: tasksData, error: tasksError } = await supabase
-        .from("tasks")
-        .select("*")
-        .eq("project_id", projectData.id);
+    setProject(projectData);
+    setIsOwner(userId === projectData.owner_id);
 
-      if (tasksError) console.error("Error fetching tasks:", tasksError.message);
-      setTasks(tasksData || []);
+    // fetch tasks
+    const { data: tasksData, error: tasksError } = await supabase
+      .from("tasks")
+      .select("*")
+      .eq("project_id", projectData.id);
+    if (tasksError) console.error("Error fetching tasks:", tasksError.message);
+    setTasks(tasksData || []);
 
-      // fetch project members
-      const { data: membersData, error: membersError } = await supabase
-        .from("project_members")
-        .select("user_id, profiles(id, username)")
-        .eq("project_id", projectData.id);
-
-
-      if (membersError) console.error("Error fetching members:", membersError.message);
-      setMembers(membersData || []);
-
-      // check if current user is owner
-      const { data: user } = await supabase.auth.getUser();
-      setIsOwner(user?.user?.id === projectData.owner_id);
-    }
+    // fetch members
+    const { data: membersData, error: membersError } = await supabase
+      .from("project_members")
+      .select("user_id, role, profiles(id, username)")
+      .eq("project_id", projectData.id);
+    if (membersError) console.error("Error fetching members:", membersError.message);
+    setMembers(membersData || []);
   };
 
   useEffect(() => {
@@ -62,10 +62,9 @@ export default function ProjectDetail() {
   const handleAddMember = async () => {
     if (!newMemberEmail || !project) return;
 
-    // lookup profile by email
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
-      .select("id, username, email")
+      .select("id, username")
       .eq("email", newMemberEmail)
       .single();
 
@@ -74,7 +73,6 @@ export default function ProjectDetail() {
       return;
     }
 
-    // check if user already a member
     if (members.find((m) => m.user_id === profile.id)) {
       alert("User is already a member");
       return;
@@ -91,7 +89,7 @@ export default function ProjectDetail() {
       return;
     }
 
-    setMembers([...members, { user_id: profile.id, profiles: profile }]);
+    setMembers([...members, { user_id: profile.id, role: "member", profiles: profile }]);
     setNewMemberEmail("");
   };
 
@@ -129,31 +127,33 @@ export default function ProjectDetail() {
         </Link>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
         {tasks.map((task) => (
           <TaskCard key={task.id} task={task} projectSlug={project.slug} />
         ))}
       </div>
 
-      {isOwner && (
-        <div className="mt-6">
-          <h3 className="text-xl font-bold mb-2">Project Members</h3>
-          <ul className="mb-4">
-            {members.map((m) => (
-              <li key={m.user_id} className="flex justify-between items-center mb-1">
-                {m.profiles?.username || m.user_id}
-                {isOwner && (
-                  <button
-                    onClick={() => handleRemoveMember(m.user_id)}
-                    className="text-xs px-2 py-1 bg-red-600 rounded hover:bg-red-500"
-                  >
-                    Remove
-                  </button>
-                )}
-              </li>
-            ))}
+      <div className="mt-6">
+        <h3 className="text-xl font-bold mb-2">Project Members</h3>
+        <ul className="mb-4">
+          {members.map((m) => (
+            <li key={m.user_id} className="flex justify-between items-center mb-1">
+              <span>
+                {m.profiles?.username || m.user_id} ({m.role})
+              </span>
+              {isOwner && m.user_id !== currentUserId && (
+                <button
+                  onClick={() => handleRemoveMember(m.user_id)}
+                  className="text-xs px-2 py-1 bg-red-600 rounded hover:bg-red-500"
+                >
+                  Remove
+                </button>
+              )}
+            </li>
+          ))}
+        </ul>
 
-          </ul>
+        {isOwner && (
           <div className="flex gap-2">
             <input
               type="email"
@@ -169,8 +169,8 @@ export default function ProjectDetail() {
               Add Member
             </button>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
