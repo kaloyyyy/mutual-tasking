@@ -1,36 +1,159 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+Got it! Here’s your `README.md` rewritten **fully in Markdown** using the format you started with, keeping the numbered sections and clean headings:
 
-## Getting Started
+````markdown
+# Mutual Tasking - Next.js App Deployment Guide
 
-First, run the development server:
+This guide explains how to set up and deploy the **Mutual Tasking Next.js app** locally or on a server using the provided environment variables example (`.env.local.example`) and the Supabase schema SQL file (`supabase_schema.sql`).
+
+---
+
+## **Prerequisites**
+
+Make sure you have the following installed:
+
+- [Node.js](https://nodejs.org/) v18 or later
+- [npm](https://www.npmjs.com/) or [yarn](https://yarnpkg.com/)
+- [PostgreSQL](https://www.postgresql.org/) v17+ (to match Supabase)
+- [Git](https://git-scm.com/)
+- (Optional) [Docker](https://www.docker.com/) if you want to run PostgreSQL in a container
+
+---
+
+## **1. Clone the Repository**
+
+```bash
+git clone https://github.com/kaloyyyy/mutual-tasking.git
+cd mutual-tasking
+````
+
+---
+
+## **2. Install Dependencies**
+
+```bash
+npm install
+# or
+yarn
+```
+
+---
+
+## **3. Configure Environment Variables**
+
+1. Copy the example environment file:
+
+```bash
+cp .env.local.example .env.local
+```
+
+2. Edit `.env.local` and update the following:
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+```
+
+> Make sure the credentials match your Supabase project.
+
+---
+
+## **4. Set Up Local PostgreSQL Database**
+
+### **Option 1: Local PostgreSQL**
+
+```bash
+# Create database
+createdb mutual_tasking_db
+
+# Restore schema
+psql -d mutual_tasking_db -f mutual-tasking/supabase_schema.sql
+```
+
+### **Option 2: Dockerized PostgreSQL**
+
+```bash
+docker run --name mutual-tasking-db -e POSTGRES_PASSWORD=yourpassword -p 5432:5432 -d postgres:17
+docker exec -i mutual-tasking-db psql -U postgres -d postgres < mutual-tasking/supabase_schema.sql
+```
+
+> Replace `yourpassword` with a secure password.
+
+---
+
+## **5. Run the Application Locally**
 
 ```bash
 npm run dev
 # or
 yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Visit [http://localhost:3000](http://localhost:3000) in your browser.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+---
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## **6. Build and Start for Production**
 
-## Learn More
+```bash
+npm run build
+npm start
+# or
+yarn build
+yarn start
+```
 
-To learn more about Next.js, take a look at the following resources:
+---
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## **7. Deploy to Vercel**
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+1. Push your code to GitHub:
 
-## Deploy on Vercel
+```bash
+git push origin main
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+2. Import the repository into [Vercel](https://vercel.com/).
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+3. Add the same environment variables in Vercel:
+
+```
+NEXT_PUBLIC_SUPABASE_URL
+NEXT_PUBLIC_SUPABASE_ANON_KEY
+SUPABASE_SERVICE_ROLE_KEY
+```
+
+4. Deploy and access your app via the Vercel URL.
+
+---
+
+## **8. Seed the Database with Sample Data (Optional)**
+
+```bash
+psql -d mutual_tasking_db -f path/to/seed.sql
+```
+
+---
+
+## **9. Notes**
+
+* `.env.local` **should not** be committed; use `.env.local.example` as a template.
+* `supabase_schema.sql` contains **schema only** (no data).
+* PostgreSQL version **must match or exceed** Supabase version (17.4+ recommended).
+
+---
+
+## **10. References**
+
+* [Next.js Documentation](https://nextjs.org/docs)
+* [Supabase Documentation](https://supabase.com/docs)
+* [PostgreSQL Documentation](https://www.postgresql.org/docs/)
+
+```
+
+---
+
+If you want, I can also **add a section at the end for Docker Compose** that sets up both PostgreSQL and Next.js in one command for instant local deployment.  
+
+Do you want me to add that?
+```
