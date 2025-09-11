@@ -1,30 +1,20 @@
 "use client";
-import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabaseClient";
-import type { User, Session } from "@supabase/supabase-js";
+import { ReactNode } from "react";
+import { useAuth } from "@/context/AuthContext";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 
-export default function AuthGuard({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+export default function AuthGuard({ children }: { children: ReactNode }) {
+  const { user, loading } = useAuth();
+  const router = useRouter();
 
   useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: sessionData }) => {
-      setUser(sessionData.session?.user ?? null);
-    });
+    if (!loading && !user) {
+      router.push("/"); // redirect to login or home
+    }
+  }, [user, loading, router]);
 
-    // Listen for auth changes
-    const { data } = supabase.auth.onAuthStateChange(
-      (_event, session: Session | null) => {
-        setUser(session?.user ?? null);
-      }
-    );
+  if (loading || !user) return <div>Loading...</div>;
 
-    // Properly unsubscribe
-    return () => {
-      data.subscription.unsubscribe();
-    };
-  }, []);
-
-  if (!user) return <div>Please login first</div>;
   return <>{children}</>;
 }
