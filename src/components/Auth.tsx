@@ -1,36 +1,36 @@
 "use client";
 import { useState } from "react";
-import { useRouter } from "next/navigation"; // import router
+import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 
 export default function Auth() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isSignUp, setIsSignUp] = useState(false);
-  const router = useRouter(); // initialize router
+  const router = useRouter();
 
   const handleSubmit = async () => {
     let error;
 
     if (isSignUp) {
-      const { data, error: signUpError } = await supabase.auth.signUp({
+      const { error: signUpError } = await supabase.auth.signUp({
         email,
         password,
       });
       error = signUpError;
       if (!error) {
         alert("Sign up successful! Please check your email to confirm.");
-        router.push("/dashboard"); // <-- redirect after signup
+        router.push("/dashboard");
       }
     } else {
-      const { data, error: signInError } = await supabase.auth.signInWithPassword({
+      const { error: signInError } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
       error = signInError;
       if (!error) {
         alert("Login successful!");
-        router.push("/dashboard"); // <-- redirect after login
+        router.push("/dashboard");
       }
     }
 

@@ -3,11 +3,22 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import { useRouter } from "next/navigation";
 
+interface Task {
+  id: string;
+  title: string;
+  description?: string;
+  slug?: string;   // <-- make optional
+  priority?: "low" | "medium" | "high";
+  status?: string; // <-- make optional
+  due_date?: string;
+}
+
+
 export default function TaskCard({
   task,
   projectSlug,
 }: {
-  task: any;
+  task: Task;
   projectSlug: string;
 }) {
   const router = useRouter();

@@ -3,6 +3,21 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+interface Assignee {
+  id: string; // profile id
+  username: string;
+  email?: string;
+}
+
+interface Task {
+  id: string;
+  title: string;
+  description?: string;
+  slug: string;
+  status: "todo" | "in-progress" | "done";
+  priority?: "low" | "medium" | "high";
+  due_date?: string;
+}
 
 export default function TaskPage() {
   const { projectSlug, taskSlug } = useParams() as {
@@ -11,10 +26,13 @@ export default function TaskPage() {
   };
   const router = useRouter();
 
-  const [task, setTask] = useState<any>(null);
+  const statuses: ("todo" | "in-progress" | "done")[] = ["todo", "in-progress", "done"];
+
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
-  const [assignees, setAssignees] = useState<any[]>([]);
+  const [task, setTask] = useState<Task | null>(null);
+  const [assignees, setAssignees] = useState<Assignee[]>([]);
+
   const [newAssigneeEmail, setNewAssigneeEmail] = useState("");
 
   // Fetch task + assignees
@@ -78,8 +96,7 @@ export default function TaskPage() {
     fetchData();
   }, [projectSlug, taskSlug]);
 
-  // Update task status
-  const handleStatusChange = async (newStatus: string) => {
+  const handleStatusChange = async (newStatus: "todo" | "in-progress" | "done") => {
     if (!task) return;
     setUpdating(true);
 
@@ -93,6 +110,7 @@ export default function TaskPage() {
 
     setUpdating(false);
   };
+
 
   // Delete task
   const handleDelete = async () => {
@@ -127,7 +145,10 @@ export default function TaskPage() {
       return;
     }
 
-    setAssignees([...assignees, { profiles: profile, user_id: profile.id }]);
+    setAssignees([
+      ...assignees,
+      { id: profile.id, username: profile.username, email: profile.email }
+    ]);
     setNewAssigneeEmail("");
   };
 
@@ -141,7 +162,7 @@ export default function TaskPage() {
       .eq("task_id", task.id)
       .eq("user_id", userId);
 
-    if (!error) setAssignees(assignees.filter((a) => a.profiles.id !== userId));
+    if (!error) setAssignees(assignees.filter((a) => a.id !== userId));
     else alert("Failed to remove assignee");
   };
 
@@ -188,7 +209,7 @@ export default function TaskPage() {
 
       {/* Status buttons */}
       <div className="mt-3 flex gap-2">
-        {["todo", "in-progress", "done"].map((s) => (
+        {statuses.map((s) => (
           <button
             key={s}
             onClick={() => handleStatusChange(s)}
@@ -202,6 +223,7 @@ export default function TaskPage() {
           </button>
         ))}
       </div>
+
 
       {/* Assignees */}
       <div className="mt-6">
@@ -219,6 +241,7 @@ export default function TaskPage() {
                 </button>
               </li>
             ))}
+
           </ul>
         ) : (
           <p className="text-gray-400 text-sm">No one assigned yet.</p>

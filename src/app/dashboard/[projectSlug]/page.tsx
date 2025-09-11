@@ -4,60 +4,102 @@ import { supabase } from "@/lib/supabaseClient";
 import { useParams } from "next/navigation";
 import TaskCard from "@/components/TaskCard";
 import Link from "next/link";
+  import { useCallback } from "react";
+
+interface Profile {
+  id: string;
+  username: string;
+}
+
+interface Member {
+  user_id: string;
+  role: string;
+  profiles?: Profile;
+}
+
+interface Task {
+  id: string;
+  title: string;
+  description?: string;
+  slug: string;
+  status: string;
+  due_date?: string;
+  priority?: "low" | "medium" | "high";
+  project_id: string;
+}
+
+
+
+interface Project {
+  id: string;
+  name: string;
+  description?: string;
+  slug: string;
+  owner_id: string;
+}
 
 export default function ProjectDetail() {
   const params = useParams();
   const projectSlug = params.projectSlug as string;
-  const [project, setProject] = useState<any>(null);
-  const [tasks, setTasks] = useState<any[]>([]);
-  const [members, setMembers] = useState<any[]>([]);
+  const [project, setProject] = useState<Project | null>(null);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [members, setMembers] = useState<Member[]>([]);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [isOwner, setIsOwner] = useState(false);
   const [newMemberEmail, setNewMemberEmail] = useState("");
 
-  const fetchData = async () => {
-    // get current user
-    const { data: userData } = await supabase.auth.getUser();
-    const userId = userData?.user?.id || null;
-    setCurrentUserId(userId);
 
-    // fetch project
-    const { data: projectData, error: projectError } = await supabase
-      .from("projects")
-      .select("*")
-      .eq("slug", projectSlug)
-      .single();
+const fetchData = useCallback(async () => {
+  const { data: userData } = await supabase.auth.getUser();
+  const userId = userData?.user?.id ?? null;
+  setCurrentUserId(userId);
 
-    if (projectError) {
-      console.error("Error fetching project:", projectError.message);
-      return;
-    }
+  const { data: projectData, error: projectError } = await supabase
+    .from("projects")
+    .select("*")
+    .eq("slug", projectSlug)
+    .single();
 
-    if (!projectData) return;
+  if (projectError || !projectData) {
+    console.error("Error fetching project:", projectError?.message);
+    return;
+  }
 
-    setProject(projectData);
-    setIsOwner(userId === projectData.owner_id);
+  setProject(projectData);
+  setIsOwner(userId === projectData.owner_id);
 
-    // fetch tasks
-    const { data: tasksData, error: tasksError } = await supabase
-      .from("tasks")
-      .select("*")
-      .eq("project_id", projectData.id);
-    if (tasksError) console.error("Error fetching tasks:", tasksError.message);
-    setTasks(tasksData || []);
+  const { data: tasksData, error: tasksError } = await supabase
+    .from("tasks")
+    .select("*")
+    .eq("project_id", projectData.id);
 
-    // fetch members
-    const { data: membersData, error: membersError } = await supabase
-      .from("project_members")
-      .select("user_id, role, profiles(id, username)")
-      .eq("project_id", projectData.id);
-    if (membersError) console.error("Error fetching members:", membersError.message);
-    setMembers(membersData || []);
-  };
+  if (tasksError) console.error("Error fetching tasks:", tasksError.message);
 
-  useEffect(() => {
-    fetchData();
-  }, [projectSlug]);
+  const typedTasks: Task[] = (tasksData || []).map((t) => ({
+    ...t,
+    slug: t.slug || "",
+    status: t.status || "todo",
+  }));
+
+  setTasks(typedTasks);
+
+  const { data: membersData, error: membersError } = await supabase
+    .from("project_members")
+    .select("user_id, role, profiles(id, username)")
+    .eq("project_id", projectData.id);
+
+  if (membersError) console.error("Error fetching members:", membersError.message);
+
+  const mappedMembers: Member[] =
+    membersData?.map((m) => ({
+      user_id: m.user_id,
+      role: m.role,
+      profiles: m.profiles?.[0],
+    })) || [];
+
+  setMembers(mappedMembers);
+}, [projectSlug]);
+
 
   const handleAddMember = async () => {
     if (!newMemberEmail || !project) return;
@@ -110,6 +152,9 @@ export default function ProjectDetail() {
     setMembers(members.filter((m) => m.user_id !== userId));
   };
 
+useEffect(() => {
+  fetchData();
+}, [fetchData]);
   if (!project) return <div>Loading...</div>;
 
   return (

@@ -1,6 +1,26 @@
+"use client";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import Auth from "@/components/Auth";
+import { useAuth } from "@/context/AuthContext";
 
 export default function Page() {
+  const router = useRouter();
+  const { user, loading: authLoading } = useAuth(); // use centralized auth
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!authLoading) {
+      if (user) {
+        router.push("/dashboard"); // redirect logged-in users
+      } else {
+        setLoading(false); // show Auth component
+      }
+    }
+  }, [user, authLoading, router]);
+
+  if (loading) return <div className="flex justify-center items-center h-screen">Loading...</div>;
+
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900 text-gray-100 gap-6 px-4">
       <h1 className="text-4xl md:text-5xl font-bold text-indigo-400 text-center">

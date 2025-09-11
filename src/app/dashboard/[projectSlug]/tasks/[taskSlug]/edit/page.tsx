@@ -3,6 +3,26 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useParams, useRouter } from "next/navigation";
 import { generateUniqueSlug } from "@/lib/lib";
+interface Profile {
+  username: string;
+  email: string;
+}
+
+interface Member {
+  user_id: string;
+  profiles?: Profile[]; // array
+}
+
+
+interface Task {
+  id: string;
+  title: string;
+  description?: string;
+  slug: string;
+  due_date?: string;
+  priority?: "low" | "medium" | "high";
+  project_id: string;
+}
 
 export default function EditTaskPage() {
   const { projectSlug, taskSlug } = useParams() as {
@@ -11,13 +31,15 @@ export default function EditTaskPage() {
   };
   const router = useRouter();
 
-  const [task, setTask] = useState<any>(null);
+  const [task, setTask] = useState<Task | null>(null);
+  const [members, setMembers] = useState<Member[]>([]);
+
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [priority, setPriority] = useState("medium");
   const [assignees, setAssignees] = useState<string[]>([]);
-  const [members, setMembers] = useState<any[]>([]);
+
 
   // fetch task + project members
   useEffect(() => {
@@ -46,10 +68,10 @@ export default function EditTaskPage() {
         setPriority(task.priority || "medium");
       }
 
-      // fetch members (profiles only)
+      // fetch members
       const { data: members } = await supabase
         .from("project_members")
-        .select("user_id, profiles(id, username)")
+        .select("user_id, profiles(username, email)")
         .eq("project_id", project.id);
 
       setMembers(members || []);
@@ -158,7 +180,7 @@ export default function EditTaskPage() {
       >
         {members.map((m) => (
           <option key={m.user_id} value={m.user_id}>
-            {m.profiles?.username || "No username"}
+            {m.profiles?.[0]?.username || m.profiles?.[0]?.email}
           </option>
         ))}
       </select>

@@ -1,44 +1,30 @@
 "use client";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import { useRouter } from "next/navigation";
+import type { User, Session } from "@supabase/supabase-js";
 
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const router = useRouter();
+  const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
-    let isMounted = true;
-
-    const checkSession = async () => {
-      const { data } = await supabase.auth.getSession();
-      if (isMounted) {
-        setUser(data.session?.user || null);
-        setLoading(false);
-        if (!data.session?.user) {
-          router.push("/"); // redirect to login if no user
-        }
-      }
-    };
-
-    checkSession();
-
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (isMounted) {
-        setUser(session?.user || null);
-        if (!session?.user) router.push("/");
-      }
+    // Get initial session
+    supabase.auth.getSession().then(({ data: sessionData }) => {
+      setUser(sessionData.session?.user ?? null);
     });
 
+    // Listen for auth changes
+    const { data } = supabase.auth.onAuthStateChange(
+      (_event, session: Session | null) => {
+        setUser(session?.user ?? null);
+      }
+    );
+
+    // Properly unsubscribe
     return () => {
-      isMounted = false;
-      listener.subscription.unsubscribe();
+      data.subscription.unsubscribe();
     };
-  }, [router]);
+  }, []);
 
-  if (loading) return <div>Loading...</div>;
-  if (!user) return null; // user will be redirected
-
+  if (!user) return <div>Please login first</div>;
   return <>{children}</>;
 }

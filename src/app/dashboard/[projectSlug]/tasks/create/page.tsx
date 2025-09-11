@@ -3,6 +3,16 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useParams, useRouter } from "next/navigation";
 import { generateUniqueSlug } from "@/lib/lib";
+interface Profile {
+  id: string;
+  username: string;
+  email?: string;
+}
+
+interface Member {
+  user_id: string;
+  profiles?: Profile;
+}
 
 export default function CreateTask() {
   const { projectSlug } = useParams() as { projectSlug: string };
@@ -14,7 +24,8 @@ export default function CreateTask() {
   const [dueDate, setDueDate] = useState("");
   const [priority, setPriority] = useState("medium");
   const [assignees, setAssignees] = useState<string[]>([]);
-  const [members, setMembers] = useState<any[]>([]);
+  const [members, setMembers] = useState<Member[]>([]);
+
 
   // fetch project ID and members
   useEffect(() => {
@@ -39,7 +50,13 @@ export default function CreateTask() {
           return;
         }
 
-        setMembers(membersData || []);
+        setMembers(
+          (membersData || []).map((m) => ({
+            user_id: m.user_id,
+            profiles: m.profiles?.[0], // or adjust depending on your Supabase join
+          }))
+        );
+
       }
     };
 

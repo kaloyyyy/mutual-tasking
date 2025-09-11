@@ -3,46 +3,48 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+import type { User, Session } from "@supabase/supabase-js";
 
 export default function Navbar() {
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [username, setUsername] = useState<string | null>(null);
   const router = useRouter();
 
   useEffect(() => {
-    // get current session user
-    supabase.auth.getSession().then(async ({ data }) => {
-      const u = data.session?.user;
+    // Get current session user
+    supabase.auth.getSession().then(async ({ data: sessionData }) => {
+      const u = sessionData.session?.user ?? null;
       setUser(u);
 
       if (u) {
-        // fetch profile
-        const { data: profile } = await supabase
+        const { data: profileData } = await supabase
           .from("profiles")
           .select("username")
           .eq("id", u.id)
           .single();
-        setUsername(profile?.username || null);
+        setUsername(profileData?.username ?? null);
       }
     });
 
-    // listen to auth changes
-    const { data: listener } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      const u = session?.user || null;
+    // Listen to auth changes
+    const { data } = supabase.auth.onAuthStateChange(async (_event, session: Session | null) => {
+      const u = session?.user ?? null;
       setUser(u);
+
       if (u) {
-        const { data: profile } = await supabase
+        const { data: profileData } = await supabase
           .from("profiles")
           .select("username")
           .eq("id", u.id)
           .single();
-        setUsername(profile?.username || null);
+        setUsername(profileData?.username ?? null);
       } else {
         setUsername(null);
       }
     });
 
-    return () => listener.subscription.unsubscribe();
+    // Properly unsubscribe
+    return () => data.subscription.unsubscribe();
   }, []);
 
   const handleLogout = async () => {
@@ -68,7 +70,7 @@ export default function Navbar() {
               href="/profile"
               className="text-gray-100 hover:text-indigo-400 transition font-medium"
             >
-              {username || "Profile"}
+              {username ?? "Profile"}
             </Link>
             <button
               onClick={handleLogout}
