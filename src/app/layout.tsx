@@ -13,7 +13,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <body className="bg-gray-900 text-gray-100 min-h-screen">
         <Navbar />
         {/* Responsive padding: small on mobile, larger on desktop */}
-        <main className="px-4 py-6 sm:px-6 lg:px-20 lg:py-10">
+        <main className="">
           {children}
         </main>
       </body>

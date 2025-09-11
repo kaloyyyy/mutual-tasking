@@ -29,7 +29,7 @@ export default function Page() {
   }
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900 text-gray-100 gap-6 px-4 sm:px-6 lg:px-20">
+    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900 text-gray-100 gap-6 ">
       <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-indigo-400 text-center">
         Welcome to Mutual Tasking
       </h1>
