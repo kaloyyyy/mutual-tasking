@@ -82,8 +82,6 @@ export default function ProjectDetail() {
   return (
     <div className="p-6 max-w-6xl mx-auto">
 
-
-
       {/* Project Header */}
       <div className="mb-6">
         <h2 className="text-3xl font-semibold">{project.name}</h2>
@@ -95,7 +93,7 @@ export default function ProjectDetail() {
         <h3 className="text-2xl font-semibold mb-2 sm:mb-0">Tasks</h3>
         <Link
           href={`/dashboard/${project.slug}/tasks/create`}
-          className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded text-sm sm:text-base font-medium transition"
+          className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded text-md font-medium transition"
         >
           + New Task
         </Link>
@@ -117,12 +115,12 @@ export default function ProjectDetail() {
         <h3 className="text-2xl font-semibold mb-2">Project Members</h3>
         <ul className="mb-4 space-y-2">
           {members.map((m) => (
-            <li key={m.user_id} className="flex justify-between items-center bg-gray-800 p-2 rounded text-base">
+            <li key={m.user_id} className="flex justify-between items-center bg-gray-800 p-2 rounded text-md">
               <span>{m.profiles?.username || m.user_id} ({m.role})</span>
               {isOwner && m.user_id !== user.id && (
                 <button
                   onClick={() => handleRemoveMember(m.user_id)}
-                  className="text-xs px-2 py-1 bg-red-600 rounded hover:bg-red-500 transition"
+                  className="px-3 py-1 text-md bg-red-600 rounded hover:bg-red-500 text-white transition"
                 >
                   Remove
                 </button>
@@ -138,18 +136,19 @@ export default function ProjectDetail() {
               placeholder="User Email"
               value={newMemberEmail}
               onChange={(e) => setNewMemberEmail(e.target.value)}
-              className="border border-gray-700 p-2 rounded flex-1 bg-gray-800 text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-base"
+              className="border border-gray-700 p-2 rounded flex-1 bg-gray-800 text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-md"
             />
             <button
               onClick={handleAddMember}
-              className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded font-medium transition text-base"
+              className="px-4 py-1 text-md bg-blue-500 hover:bg-blue-600 text-white rounded font-medium transition"
             >
               Add Member
             </button>
           </div>
         )}
       </div>
-        <BackButton className="" />
+
+      <BackButton className="" />
     </div>
   );
 }

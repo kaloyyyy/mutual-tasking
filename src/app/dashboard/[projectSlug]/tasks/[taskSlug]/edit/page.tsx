@@ -11,6 +11,14 @@ interface Profile {
   email?: string;
 }
 
+
+interface TaskAssignee {
+  user_id: string;
+}
+
+
+
+
 interface Member {
   user_id: string;
   profiles?: Profile[] | Profile | null;
@@ -84,7 +92,7 @@ export default function EditTaskPage() {
         .select("user_id")
         .eq("task_id", taskData.id);
 
-      setAssignees(taskAssignees?.map((a: any) => a.user_id) || []);
+setAssignees(taskAssignees?.map((a: TaskAssignee) => a.user_id) || []);   
     };
 
     fetchData();
