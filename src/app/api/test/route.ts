@@ -6,4 +6,5 @@ const { data, error } = await supabase.auth.signUp({
 });
 
 if (error) console.error("SignUp error:", error.message);
-else console.log("User created:", data.user.id);
+else if (data.user) console.log("User created:", data.user.id);
+else console.log("User created, but user data is unavailable.");
