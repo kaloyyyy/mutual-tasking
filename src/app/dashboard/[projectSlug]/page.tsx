@@ -84,54 +84,74 @@ export default function ProjectDetail() {
 
     const { data: membersData, error: membersError } = await supabase
       .from("project_members")
-      .select("user_id, role, profiles(id, username)")
+      .select(`user_id,
+            role,
+            profiles!inner(id, username)`)
       .eq("project_id", projectData.id);
 
     if (membersError) console.error("Error fetching members:", membersError.message);
 
     const mappedMembers: Member[] =
-      membersData?.map((m) => ({
+      (membersData || []).map((m) => ({
         user_id: m.user_id,
         role: m.role,
-        profiles: m.profiles?.[0],
-      })) || [];
+        profiles: Array.isArray(m.profiles) ? m.profiles[0] : m.profiles,
+      }));
 
     setMembers(mappedMembers);
+
   }, [projectSlug, user]);
 
-  const handleAddMember = async () => {
-    if (!newMemberEmail || !project || !user) return;
+const handleAddMember = async () => {
+  if (!newMemberEmail || !project) return;
 
-    const { data: profile, error: profileError } = await supabase
+  try {
+    // Step 1: Look up the user in the profiles table
+    const { data: profileData, error: profileError } = await supabase
       .from("profiles")
-      .select("id, username")
+      .select("id, username, email")
       .eq("email", newMemberEmail)
       .single();
 
-    if (profileError || !profile) {
+    if (profileError || !profileData) {
       alert("User not found");
       return;
     }
 
-    if (members.find((m) => m.user_id === profile.id)) {
-      alert("User is already a member");
+    const userId = profileData.id;
+
+    // Step 2: Add the user to project_members
+    const { error: memberError } = await supabase
+      .from("project_members")
+      .insert([
+        {
+          project_id: project.id,
+          user_id: userId,
+          role: "member", // default role
+        },
+      ]);
+
+    if (memberError) {
+      alert(memberError.message);
       return;
     }
 
-    const { error } = await supabase.from("project_members").insert({
-      project_id: project.id,
-      user_id: profile.id,
-      role: "member",
-    });
+    // Step 3: Update UI immediately
+    setMembers((prev) => [
+      ...prev,
+      { user_id: userId, role: "member", profiles: profileData },
+    ]);
 
-    if (error) {
-      alert("Failed to add member: " + error.message);
-      return;
-    }
-
-    setMembers([...members, { user_id: profile.id, role: "member", profiles: profile }]);
     setNewMemberEmail("");
-  };
+  } catch (err) {
+    console.error(err);
+    alert("Failed to add member");
+  }
+};
+
+
+
+
 
   const handleRemoveMember = async (userId: string) => {
     if (!project) return;

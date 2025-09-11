@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 
 interface Project {
@@ -8,26 +9,36 @@ interface Project {
   name: string;
   description: string;
   slug: string;
-  // Add other fields as needed
 }
 
-export default function ProjectCard({ project, isOwner }: { project: Project; isOwner?: boolean }) {
+interface ProjectCardProps {
+  project: Project;
+  isOwner?: boolean;
+  onDelete?: (id: string) => void; // new callback
+}
+
+export default function ProjectCard({ project, isOwner, onDelete }: ProjectCardProps) {
   const router = useRouter();
+  const [deleting, setDeleting] = useState(false);
 
   const handleDelete = async () => {
     if (!confirm(`Are you sure you want to delete project "${project.name}"?`)) return;
 
+    setDeleting(true);
     const { error } = await supabase
       .from("projects")
       .delete()
       .eq("id", project.id);
+
+    setDeleting(false);
 
     if (error) {
       alert("Failed to delete project: " + error.message);
       return;
     }
 
-    router.refresh();
+    // Notify parent to remove project from UI
+    if (onDelete) onDelete(project.id);
   };
 
   const handleEdit = () => {
@@ -36,10 +47,7 @@ export default function ProjectCard({ project, isOwner }: { project: Project; is
 
   return (
     <div className="p-4 bg-gray-800 shadow hover:shadow-lg rounded-md transition relative">
-      <Link
-        href={`/dashboard/${project.slug}`}
-        className="block"
-      >
+      <Link href={`/dashboard/${project.slug}`} className="block">
         <h3 className="font-bold text-lg text-gray-100">{project.name}</h3>
         <p className="text-gray-300">{project.description}</p>
       </Link>
@@ -54,9 +62,10 @@ export default function ProjectCard({ project, isOwner }: { project: Project; is
           </button>
           <button
             onClick={(e) => { e.stopPropagation(); handleDelete(); }}
-            className="bg-red-600 text-white px-2 py-1 rounded text-sm"
+            className={`px-2 py-1 rounded text-sm text-white ${deleting ? "bg-gray-500 cursor-not-allowed" : "bg-red-600"}`}
+            disabled={deleting}
           >
-            Delete
+            {deleting ? "Deleting..." : "Delete"}
           </button>
         </div>
       )}

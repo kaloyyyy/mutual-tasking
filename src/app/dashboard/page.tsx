@@ -78,15 +78,16 @@ export default function Dashboard() {
           + New Project
         </Link>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {projects.map((p) => (
-          <ProjectCard
-            key={p.id}
-            project={{ ...p, description: p.description ?? "" }}
-            isOwner={user?.id === p.owner_id}
-          />
-        ))}
-      </div>
+<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+  {projects.map((p) => (
+    <ProjectCard
+      key={p.id}
+      project={{ ...p, description: p.description ?? "" }}
+      isOwner={user?.id === p.owner_id}
+      onDelete={(id) => setProjects((prev) => prev.filter((proj) => proj.id !== id))}
+    />
+  ))}
+</div>
     </div>
   );
 }
