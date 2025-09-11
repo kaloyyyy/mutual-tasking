@@ -1,18 +1,23 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useRouter } from "next/navigation";
 import { generateUniqueSlug } from "@/lib/lib";
+import { useSupabaseSession } from "@/lib/fetchSupabaseSession";
 
 export default function CreateProject() {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const router = useRouter();
+  const { user, loading: authLoading } = useSupabaseSession();
+
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.push("/"); // redirect unauthorized users
+    }
+  }, [authLoading, user, router]);
 
   const handleSubmit = async () => {
-    const { data: userData } = await supabase.auth.getUser();
-    const user = userData?.user;
-
     if (!user) {
       alert("You must be logged in to create a project.");
       return;
@@ -56,6 +61,14 @@ export default function CreateProject() {
 
     router.push(`/dashboard/${project.slug}`);
   };
+
+  if (authLoading || !user) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        Loading...
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-md mx-auto">

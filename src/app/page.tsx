@@ -3,11 +3,11 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Auth from "@/components/Auth";
-import { useAuth } from "@/context/AuthContext";
+import { useSupabaseSession } from "@/lib/fetchSupabaseSession";
 
 export default function Page() {
   const router = useRouter();
-  const { user, loading: authLoading } = useAuth(); // use centralized auth
+  const { user, loading: authLoading } = useSupabaseSession(); // per-page session
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {

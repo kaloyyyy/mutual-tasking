@@ -1,51 +1,13 @@
 "use client";
+
 import Link from "next/link";
-import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
-import type { User, Session } from "@supabase/supabase-js";
+import { useSupabaseSession } from "@/lib/fetchSupabaseSession";
 
 export default function Navbar() {
-  const [user, setUser] = useState<User | null>(null);
-  const [username, setUsername] = useState<string | null>(null);
+  const { user, loading } = useSupabaseSession();
   const router = useRouter();
-
-  useEffect(() => {
-    // Get current session user
-    supabase.auth.getSession().then(async ({ data: sessionData }) => {
-      const u = sessionData.session?.user ?? null;
-      setUser(u);
-
-      if (u) {
-        const { data: profileData } = await supabase
-          .from("profiles")
-          .select("username")
-          .eq("id", u.id)
-          .single();
-        setUsername(profileData?.username ?? null);
-      }
-    });
-
-    // Listen to auth changes
-    const { data } = supabase.auth.onAuthStateChange(async (_event, session: Session | null) => {
-      const u = session?.user ?? null;
-      setUser(u);
-
-      if (u) {
-        const { data: profileData } = await supabase
-          .from("profiles")
-          .select("username")
-          .eq("id", u.id)
-          .single();
-        setUsername(profileData?.username ?? null);
-      } else {
-        setUsername(null);
-      }
-    });
-
-    // Properly unsubscribe
-    return () => data.subscription.unsubscribe();
-  }, []);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -54,11 +16,17 @@ export default function Navbar() {
 
   return (
     <nav className="bg-gray-800 shadow-md p-4 flex justify-between items-center">
-      <Link href="/" className="font-bold text-2xl text-indigo-400 hover:text-indigo-300 transition">
+      <Link
+        href="/"
+        className="font-bold text-2xl text-indigo-400 hover:text-indigo-300 transition"
+      >
         Mutual Tasking
       </Link>
+
       <div className="flex gap-4 items-center">
-        {user ? (
+        {loading ? (
+          <span className="text-gray-100 animate-pulse">Checking session...</span>
+        ) : user ? (
           <>
             <Link
               href="/dashboard"
@@ -70,7 +38,7 @@ export default function Navbar() {
               href="/profile"
               className="text-gray-100 hover:text-indigo-400 transition font-medium"
             >
-              {username ?? "Profile"}
+              {user.email}
             </Link>
             <button
               onClick={handleLogout}

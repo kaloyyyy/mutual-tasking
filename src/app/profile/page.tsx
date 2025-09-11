@@ -1,17 +1,27 @@
 "use client";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { useRouter } from "next/navigation";
+import { useSupabaseSession } from "@/lib/fetchSupabaseSession";
 
 export default function ProfilePage() {
+  const { user, loading: authLoading } = useSupabaseSession();
+  const router = useRouter();
   const [profile, setProfile] = useState<{ full_name: string; avatar_url: string }>({
     full_name: "",
     avatar_url: "",
   });
   const [loading, setLoading] = useState(true);
 
+  // Redirect unauthorized users
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.push("/"); // redirect to login
+    }
+  }, [authLoading, user, router]);
+
   useEffect(() => {
     const fetchProfile = async () => {
-      const user = (await supabase.auth.getUser()).data.user;
       if (!user) return;
 
       const { data } = await supabase
@@ -19,14 +29,15 @@ export default function ProfilePage() {
         .select("*")
         .eq("id", user.id)
         .single();
+
       if (data) setProfile({ full_name: data.full_name, avatar_url: data.avatar_url });
       setLoading(false);
     };
-    fetchProfile();
-  }, []);
+
+    if (!authLoading && user) fetchProfile();
+  }, [user, authLoading]);
 
   const handleUpdate = async () => {
-    const user = (await supabase.auth.getUser()).data.user;
     if (!user) return;
 
     const { error } = await supabase.from("profiles").update(profile).eq("id", user.id);
@@ -34,7 +45,13 @@ export default function ProfilePage() {
     else alert("Profile updated!");
   };
 
-  if (loading) return <div>Loading profile...</div>;
+  if (authLoading || loading || !user) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        Loading profile...
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-md mx-auto">

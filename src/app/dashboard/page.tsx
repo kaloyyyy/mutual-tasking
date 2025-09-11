@@ -1,10 +1,11 @@
 "use client";
+
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation"; // <— import at the top
 import ProjectCard from "@/components/ProjectCard";
 import Link from "next/link";
-import AuthGuard from "@/components/AuthGuard";
-import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/lib/supabaseClient";
+import { useSupabaseSession } from "@/lib/fetchSupabaseSession";
 
 // src/types.ts
 export interface Project {
@@ -15,22 +16,21 @@ export interface Project {
   owner_id: string;
 }
 
-
 export default function Dashboard() {
-  const { user, loading: authLoading } = useAuth();
+  const router = useRouter(); // <— always call at top level
+  const { user, loading: authLoading } = useSupabaseSession();
   const [projects, setProjects] = useState<Project[]>([]);
+  const [loadingProjects, setLoadingProjects] = useState(true);
 
   useEffect(() => {
     const fetchProjects = async () => {
       if (!user) return;
 
-      // fetch all projects where the user is owner
       const { data: ownedProjects } = await supabase
         .from("projects")
         .select("*")
         .eq("owner_id", user.id);
 
-      // fetch all projects where the user is a member
       const { data: memberProjects } = await supabase
         .from("project_members")
         .select("project_id")
@@ -38,7 +38,6 @@ export default function Dashboard() {
 
       const memberProjectIds = memberProjects?.map((m) => m.project_id) || [];
 
-      // combine and remove duplicates
       const allProjectIds = Array.from(
         new Set([...(ownedProjects?.map((p) => p.id) || []), ...memberProjectIds])
       );
@@ -49,39 +48,45 @@ export default function Dashboard() {
         .in("id", allProjectIds);
 
       setProjects(projects || []);
+      setLoadingProjects(false);
     };
 
     if (!authLoading) fetchProjects();
   }, [user, authLoading]);
 
-  if (authLoading)
+  // Redirect if no user (unauthorized)
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.push("/"); // redirect to login
+    }
+  }, [authLoading, user, router]);
+
+  if (authLoading || loadingProjects) {
     return (
       <div className="flex justify-center items-center h-screen">Loading...</div>
     );
+  }
 
   return (
-    <AuthGuard>
-      <div>
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-2xl font-bold">Projects</h2>
-          <Link
-            href="/dashboard/create"
-            className="bg-green-500 text-white p-2 rounded"
-          >
-            + New Project
-          </Link>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {projects.map((p) => (
+    <div>
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-2xl font-bold">Projects</h2>
+        <Link
+          href="/dashboard/create"
+          className="bg-green-500 text-white p-2 rounded"
+        >
+          + New Project
+        </Link>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {projects.map((p) => (
           <ProjectCard
             key={p.id}
             project={{ ...p, description: p.description ?? "" }}
             isOwner={user?.id === p.owner_id}
           />
-
-          ))}
-        </div>
+        ))}
       </div>
-    </AuthGuard>
+    </div>
   );
 }

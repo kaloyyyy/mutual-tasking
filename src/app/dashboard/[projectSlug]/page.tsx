@@ -1,10 +1,11 @@
 "use client";
-import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabaseClient";
-import { useParams } from "next/navigation";
+
+import { useEffect, useState, useCallback } from "react";
+import { useParams, useRouter } from "next/navigation";
 import TaskCard from "@/components/TaskCard";
 import Link from "next/link";
-  import { useCallback } from "react";
+import { supabase } from "@/lib/supabaseClient";
+import { useSupabaseSession } from "@/lib/fetchSupabaseSession";
 
 interface Profile {
   id: string;
@@ -28,8 +29,6 @@ interface Task {
   project_id: string;
 }
 
-
-
 interface Project {
   id: string;
   name: string;
@@ -40,69 +39,68 @@ interface Project {
 
 export default function ProjectDetail() {
   const params = useParams();
+  const router = useRouter();
   const projectSlug = params.projectSlug as string;
+  const { user, loading: authLoading } = useSupabaseSession(); // use per-page session
   const [project, setProject] = useState<Project | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [isOwner, setIsOwner] = useState(false);
   const [newMemberEmail, setNewMemberEmail] = useState("");
 
+  const fetchData = useCallback(async () => {
+    if (!user) return;
 
-const fetchData = useCallback(async () => {
-  const { data: userData } = await supabase.auth.getUser();
-  const userId = userData?.user?.id ?? null;
-  setCurrentUserId(userId);
+    const userId = user.id;
 
-  const { data: projectData, error: projectError } = await supabase
-    .from("projects")
-    .select("*")
-    .eq("slug", projectSlug)
-    .single();
+    const { data: projectData, error: projectError } = await supabase
+      .from("projects")
+      .select("*")
+      .eq("slug", projectSlug)
+      .single();
 
-  if (projectError || !projectData) {
-    console.error("Error fetching project:", projectError?.message);
-    return;
-  }
+    if (projectError || !projectData) {
+      console.error("Error fetching project:", projectError?.message);
+      return;
+    }
 
-  setProject(projectData);
-  setIsOwner(userId === projectData.owner_id);
+    setProject(projectData);
+    setIsOwner(userId === projectData.owner_id);
 
-  const { data: tasksData, error: tasksError } = await supabase
-    .from("tasks")
-    .select("*")
-    .eq("project_id", projectData.id);
+    const { data: tasksData, error: tasksError } = await supabase
+      .from("tasks")
+      .select("*")
+      .eq("project_id", projectData.id);
 
-  if (tasksError) console.error("Error fetching tasks:", tasksError.message);
+    if (tasksError) console.error("Error fetching tasks:", tasksError.message);
 
-  const typedTasks: Task[] = (tasksData || []).map((t) => ({
-    ...t,
-    slug: t.slug || "",
-    status: t.status || "todo",
-  }));
+    const typedTasks: Task[] = (tasksData || []).map((t) => ({
+      ...t,
+      slug: t.slug || "",
+      status: t.status || "todo",
+    }));
 
-  setTasks(typedTasks);
+    setTasks(typedTasks);
 
-  const { data: membersData, error: membersError } = await supabase
-    .from("project_members")
-    .select("user_id, role, profiles(id, username)")
-    .eq("project_id", projectData.id);
+    const { data: membersData, error: membersError } = await supabase
+      .from("project_members")
+      .select("user_id, role, profiles(id, username)")
+      .eq("project_id", projectData.id);
 
-  if (membersError) console.error("Error fetching members:", membersError.message);
+    if (membersError) console.error("Error fetching members:", membersError.message);
 
-  const mappedMembers: Member[] =
-    membersData?.map((m) => ({
-      user_id: m.user_id,
-      role: m.role,
-      profiles: m.profiles?.[0],
-    })) || [];
+    const mappedMembers: Member[] =
+      membersData?.map((m) => ({
+        user_id: m.user_id,
+        role: m.role,
+        profiles: m.profiles?.[0],
+      })) || [];
 
-  setMembers(mappedMembers);
-}, [projectSlug]);
-
+    setMembers(mappedMembers);
+  }, [projectSlug, user]);
 
   const handleAddMember = async () => {
-    if (!newMemberEmail || !project) return;
+    if (!newMemberEmail || !project || !user) return;
 
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
@@ -152,10 +150,18 @@ const fetchData = useCallback(async () => {
     setMembers(members.filter((m) => m.user_id !== userId));
   };
 
-useEffect(() => {
-  fetchData();
-}, [fetchData]);
-  if (!project) return <div>Loading...</div>;
+  // Redirect unauthorized users
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.push("/"); // redirect to login
+    }
+  }, [authLoading, user, router]);
+
+  useEffect(() => {
+    if (!authLoading && user) fetchData();
+  }, [authLoading, user, fetchData]);
+
+  if (authLoading || !user || !project) return <div>Loading...</div>;
 
   return (
     <div>
@@ -186,7 +192,7 @@ useEffect(() => {
               <span>
                 {m.profiles?.username || m.user_id} ({m.role})
               </span>
-              {isOwner && m.user_id !== currentUserId && (
+              {isOwner && m.user_id !== user.id && (
                 <button
                   onClick={() => handleRemoveMember(m.user_id)}
                   className="text-xs px-2 py-1 bg-red-600 rounded hover:bg-red-500"
