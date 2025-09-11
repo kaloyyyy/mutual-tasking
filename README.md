@@ -1,6 +1,6 @@
 Got it! Here’s your `README.md` rewritten **fully in Markdown** using the format you started with, keeping the numbered sections and clean headings:
 
-````markdown
+
 # Mutual Tasking - Next.js App Deployment Guide
 
 This guide explains how to set up and deploy the **Mutual Tasking Next.js app** locally or on a server using the provided environment variables example (`.env.local.example`) and the Supabase schema SQL file (`supabase_schema.sql`).
