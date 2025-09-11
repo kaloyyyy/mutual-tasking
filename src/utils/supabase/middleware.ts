@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 
 // src/utils/supabase/middleware.ts
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
