@@ -7,12 +7,11 @@ interface Task {
   id: string;
   title: string;
   description?: string;
-  slug?: string;   // <-- make optional
+  slug?: string;
   priority?: "low" | "medium" | "high";
-  status?: string; // <-- make optional
+  status?: string;
   due_date?: string;
 }
-
 
 export default function TaskCard({
   task,
@@ -24,13 +23,10 @@ export default function TaskCard({
   const router = useRouter();
 
   const handleDelete = async (e: React.MouseEvent) => {
-    e.preventDefault(); // prevent navigating when clicking delete
+    e.preventDefault();
     const { error } = await supabase.from("tasks").delete().eq("id", task.id);
-    if (error) {
-      alert(error.message);
-    } else {
-      router.refresh(); // reloads the page data
-    }
+    if (error) alert(error.message);
+    else router.refresh();
   };
 
   const handleEdit = (e: React.MouseEvent) => {
@@ -38,13 +34,14 @@ export default function TaskCard({
     router.push(`/dashboard/${projectSlug}/tasks/${task.slug}/edit`);
   };
 
-  let priorityClass = "bg-gray-200 text-gray-700";
-  if (task.priority === "low") priorityClass = "bg-green-100 text-green-700";
-  if (task.priority === "medium") priorityClass = "bg-yellow-100 text-yellow-700";
-  if (task.priority === "high") priorityClass = "bg-red-100 text-red-700";
+  // Updated colors
+  let priorityClass = "bg-gray-700 text-gray-100";      // default
+  if (task.priority === "low") priorityClass = "bg-green-600 text-green-50";
+  if (task.priority === "medium") priorityClass = "bg-yellow-500 text-yellow-900";
+  if (task.priority === "high") priorityClass = "bg-red-600 text-red-50";
 
   return (
-    <div className="block border p-4 rounded shadow hover:bg-gray-800 hover:text-white transition-colors">
+    <div className="block border border-gray-700 p-4 rounded shadow hover:bg-gray-800 hover:text-white transition-colors">
       <Link href={`/dashboard/${projectSlug}/tasks/${task.slug}`}>
         <div className="flex justify-between items-center">
           <h4 className="font-bold text-lg">{task.title}</h4>
@@ -61,12 +58,12 @@ export default function TaskCard({
           {task.description}
         </p>
 
-        <p className="text-xs text-gray-500 mt-2">
+        <p className="text-xs text-gray-400 mt-2">
           Status: <span className="capitalize">{task.status}</span>
         </p>
 
         {task.due_date && (
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-gray-400">
             Due: {new Date(task.due_date).toLocaleDateString()}
           </p>
         )}
@@ -76,13 +73,13 @@ export default function TaskCard({
       <div className="flex gap-2 mt-3">
         <button
           onClick={handleEdit}
-          className="bg-yellow-500 hover:bg-yellow-600 text-white text-xs px-3 py-1 rounded"
+          className="bg-indigo-500 hover:bg-indigo-600 text-white text-xs px-3 py-1 rounded"
         >
           Edit
         </button>
         <button
           onClick={handleDelete}
-          className="bg-red-500 hover:bg-red-600 text-white text-xs px-3 py-1 rounded"
+          className="bg-rose-500 hover:bg-rose-600 text-white text-xs px-3 py-1 rounded"
         >
           Delete
         </button>

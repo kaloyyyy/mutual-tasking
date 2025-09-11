@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useParams, useRouter } from "next/navigation";
 import { generateUniqueSlug } from "@/lib/lib";
+import BackButton from "@/components/BackButton";
 
 interface Profile {
   id: string;
@@ -192,6 +193,7 @@ export default function CreateTask() {
       >
         Create Task
       </button>
+        <BackButton className="mt-4" />
     </div>
   );
 }

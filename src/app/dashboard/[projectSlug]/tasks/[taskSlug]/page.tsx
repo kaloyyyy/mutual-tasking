@@ -3,8 +3,10 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import BackButton from "@/components/BackButton";
+
 interface Assignee {
-  id: string; // profile id
+  id: string;
   username: string;
   email?: string;
 }
@@ -32,15 +34,12 @@ export default function TaskPage() {
   const [updating, setUpdating] = useState(false);
   const [task, setTask] = useState<Task | null>(null);
   const [assignees, setAssignees] = useState<Assignee[]>([]);
-
   const [newAssigneeEmail, setNewAssigneeEmail] = useState("");
 
-  // Fetch task + assignees
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
 
-      // 1️⃣ Fetch project
       const { data: project } = await supabase
         .from("projects")
         .select("id")
@@ -52,7 +51,6 @@ export default function TaskPage() {
         return;
       }
 
-      // 2️⃣ Fetch task
       const { data: task } = await supabase
         .from("tasks")
         .select("*")
@@ -63,29 +61,17 @@ export default function TaskPage() {
       setTask(task);
 
       if (task) {
-        // 1️⃣ Fetch task assignee IDs
-        const { data: assigneeIds, error: assigneeIdsError } = await supabase
+        const { data: assigneeIds } = await supabase
           .from("task_assignees")
           .select("user_id")
           .eq("task_id", task.id);
 
-        if (assigneeIdsError) {
-          console.error("Error fetching task assignee IDs:", assigneeIdsError.message);
-          return;
-        }
+        const userIds = assigneeIds?.map(a => a.user_id) || [];
 
-        const userIds = assigneeIds.map(a => a.user_id);
-
-        // 2️⃣ Fetch profiles only (no email)
-        const { data: profiles, error: profilesError } = await supabase
+        const { data: profiles } = await supabase
           .from("profiles")
-          .select("id, username")
+          .select("id, username, email")
           .in("id", userIds);
-
-        if (profilesError) {
-          console.error("Error fetching profiles:", profilesError.message);
-          return;
-        }
 
         setAssignees(profiles || []);
       }
@@ -111,8 +97,6 @@ export default function TaskPage() {
     setUpdating(false);
   };
 
-
-  // Delete task
   const handleDelete = async () => {
     if (!task || !confirm("Are you sure you want to delete this task?")) return;
 
@@ -121,7 +105,6 @@ export default function TaskPage() {
     else alert("Failed to delete task");
   };
 
-  // Add assignee
   const handleAddAssignee = async () => {
     if (!task || !newAssigneeEmail.trim()) return;
 
@@ -145,14 +128,10 @@ export default function TaskPage() {
       return;
     }
 
-    setAssignees([
-      ...assignees,
-      { id: profile.id, username: profile.username, email: profile.email }
-    ]);
+    setAssignees([...assignees, { id: profile.id, username: profile.username, email: profile.email }]);
     setNewAssigneeEmail("");
   };
 
-  // Remove assignee
   const handleRemoveAssignee = async (userId: string) => {
     if (!task) return;
 
@@ -162,7 +141,7 @@ export default function TaskPage() {
       .eq("task_id", task.id)
       .eq("user_id", userId);
 
-    if (!error) setAssignees(assignees.filter((a) => a.id !== userId));
+    if (!error) setAssignees(assignees.filter(a => a.id !== userId));
     else alert("Failed to remove assignee");
   };
 
@@ -170,101 +149,96 @@ export default function TaskPage() {
   if (!task) return <div className="p-4 text-red-400">Task not found</div>;
 
   return (
-    <div className="p-6 max-w-2xl">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">{task.title}</h1>
-        <div className="flex gap-2">
-          <Link
-            href={`/dashboard/${projectSlug}/tasks/${task.slug}/edit`}
-            className="px-3 py-1 text-sm rounded bg-yellow-600 text-white hover:bg-yellow-500"
-          >
-            Edit
-          </Link>
-          <button
-            onClick={handleDelete}
-            className="px-3 py-1 text-sm rounded bg-red-600 text-white hover:bg-red-500"
-          >
-            Delete
-          </button>
-        </div>
-      </div>
-
-      <p className="mt-2 text-gray-400">{task.description}</p>
-
-      <div className="mt-4 space-y-2">
-        <p>
-          <span className="font-semibold">Status:</span>{" "}
-          <span className="capitalize">{task.status}</span>
-        </p>
-        <p>
-          <span className="font-semibold">Priority:</span>{" "}
-          <span className="capitalize">{task.priority || "not set"}</span>
-        </p>
-        {task.due_date && (
-          <p className="text-sm text-gray-500">
-            Due Date: {new Date(task.due_date).toLocaleDateString()}
-          </p>
-        )}
-      </div>
-
-      {/* Status buttons */}
-      <div className="mt-3 flex gap-2">
-        {statuses.map((s) => (
-          <button
-            key={s}
-            onClick={() => handleStatusChange(s)}
-            disabled={updating || task.status === s}
-            className={`px-3 py-1 rounded text-sm ${task.status === s
-                ? "bg-blue-600 text-white"
-                : "bg-gray-700 text-gray-200 hover:bg-gray-600"
-              }`}
-          >
-            {s}
-          </button>
-        ))}
-      </div>
-
-
-      {/* Assignees */}
-      <div className="mt-6">
-        <h3 className="font-semibold mb-2">Assigned Users</h3>
-        {assignees.length > 0 ? (
-          <ul className="list-disc list-inside text-sm text-gray-300 space-y-1">
-            {assignees.map((a) => (
-              <li key={a.id} className="flex justify-between items-center">
-                {a.username || "No username"}
-                <button
-                  onClick={() => handleRemoveAssignee(a.id)}
-                  className="text-xs px-2 py-1 bg-red-600 rounded hover:bg-red-500"
-                >
-                  Remove
-                </button>
-              </li>
-            ))}
-
-          </ul>
-        ) : (
-          <p className="text-gray-400 text-sm">No one assigned yet.</p>
-        )}
-
-
-        {/* Add assignee */}
-        <div className="mt-3 flex gap-2">
-          <input
-            type="email"
-            placeholder="Enter user email"
-            value={newAssigneeEmail}
-            onChange={(e) => setNewAssigneeEmail(e.target.value)}
-            className="flex-1 px-2 py-1 text-sm rounded bg-gray-800 text-white border border-gray-600"
-          />
-          <button
-            onClick={handleAddAssignee}
-            className="px-3 py-1 text-sm rounded bg-green-600 text-white hover:bg-green-500"
-          >
-            Add
-          </button>
-        </div>
-      </div>
+    <div className="p-6 max-w-2xl mx-auto bg-gray-900 rounded-lg shadow-lg text-gray-100">
+  <div className="flex justify-between items-center">
+    <h1 className="text-3xl font-bold">{task.title}</h1>
+    <div className="flex gap-2">
+      <Link
+        href={`/dashboard/${projectSlug}/tasks/${task.slug}/edit`}
+        className="px-4 py-1 text-base font-md rounded-lg bg-yellow-600 text-white hover:bg-yellow-500 transition"
+      >
+        Edit
+      </Link>
+      <button
+        onClick={handleDelete}
+        className="px-2 py-1 text-base font-md rounded-lg bg-red-600 text-white hover:bg-red-500 transition"
+      >
+        Delete
+      </button>
     </div>
+  </div>
+
+  <p className="mt-2 text-gray-300">{task.description}</p>
+
+  <div className="mt-4 space-y-2">
+    <p>
+      <span className="font-semibold">Priority:</span>{" "}
+      <span className="capitalize">{task.priority || "Not set"}</span>
+    </p>
+    {task.due_date && (
+      <p className="text-sm text-gray-400">
+        Due Date: {new Date(task.due_date).toLocaleDateString()}
+      </p>
+    )}
+  </div>
+
+  <div className="mt-4 align-center flex gap-2">
+    <span className="font-semibold flex p-0 m-0">Status:</span>{" "}
+    {statuses.map((s) => (
+      <button
+        key={s}
+        onClick={() => handleStatusChange(s)}
+        disabled={updating || task.status === s}
+        className={`px-4 py-1 text-sm font-semibold rounded-lg transition ${
+          task.status === s
+            ? "bg-blue-600 text-white"
+            : "bg-gray-700 text-gray-200 hover:bg-gray-600"
+        }`}
+      >
+        {s}
+      </button>
+    ))}
+  </div>
+
+  <div className="mt-6">
+    <h3 className="font-semibold mb-2">Assigned Users</h3>
+    {assignees.length > 0 ? (
+      <ul className="list-disc list-inside text-sm text-gray-300 space-y-1">
+        {assignees.map((a) => (
+          <li key={a.id} className="flex justify-between items-center">
+            {a.username || "No username"}
+            <button
+              onClick={() => handleRemoveAssignee(a.id)}
+              className="px-4 py-1 text-base font-md rounded-lg bg-red-600 text-white hover:bg-red-500 transition"
+            >
+              Remove
+            </button>
+          </li>
+        ))}
+      </ul>
+    ) : (
+      <p className="text-gray-400 text-sm">No one assigned yet.</p>
+    )}
+
+    <div className="mt-3 flex gap-2">
+      <input
+        type="email"
+        placeholder="Enter user email"
+        value={newAssigneeEmail}
+        onChange={(e) => setNewAssigneeEmail(e.target.value)}
+        className="flex-1 px-3 py-1 text-base rounded-lg bg-gray-800 text-white border border-gray-600 focus:outline-none focus:border-indigo-500"
+      />
+      <button
+        onClick={handleAddAssignee}
+        className="px-4 py-1 text-base font-md rounded-lg bg-green-600 text-white hover:bg-green-500 transition"
+      >
+        Add
+      </button>
+    </div>
+  </div>
+
+  <BackButton className="mt-4" />
+</div>
+
   );
 }

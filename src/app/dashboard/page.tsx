@@ -1,13 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation"; // <— import at the top
+import { useRouter } from "next/navigation";
 import ProjectCard from "@/components/ProjectCard";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import { useSupabaseSession } from "@/lib/fetchSupabaseSession";
 
-// src/types.ts
 export interface Project {
   id: string;
   name: string;
@@ -17,7 +16,7 @@ export interface Project {
 }
 
 export default function Dashboard() {
-  const router = useRouter(); // <— always call at top level
+  const router = useRouter();
   const { user, loading: authLoading } = useSupabaseSession();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loadingProjects, setLoadingProjects] = useState(true);
@@ -37,7 +36,6 @@ export default function Dashboard() {
         .eq("user_id", user.id);
 
       const memberProjectIds = memberProjects?.map((m) => m.project_id) || [];
-
       const allProjectIds = Array.from(
         new Set([...(ownedProjects?.map((p) => p.id) || []), ...memberProjectIds])
       );
@@ -54,40 +52,49 @@ export default function Dashboard() {
     if (!authLoading) fetchProjects();
   }, [user, authLoading]);
 
-  // Redirect if no user (unauthorized)
+  // Redirect if not logged in
   useEffect(() => {
     if (!authLoading && !user) {
-      router.push("/"); // redirect to login
+      router.push("/");
     }
   }, [authLoading, user, router]);
 
   if (authLoading || loadingProjects) {
     return (
-      <div className="flex justify-center items-center h-screen">Loading...</div>
+      <div className="flex justify-center items-center h-screen text-lg font-medium text-gray-400">
+        Loading...
+      </div>
     );
   }
 
   return (
-    <div>
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-2xl font-bold">Projects</h2>
+    <div className="p-6">
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-3xl font-semibold">Projects</h2>
         <Link
           href="/dashboard/create"
-          className="bg-green-500 text-white p-2 rounded"
+          className="bg-green-500 hover:bg-green-600 text-white font-medium text-sm px-4 py-2 rounded transition-colors"
         >
           + New Project
         </Link>
       </div>
-<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-  {projects.map((p) => (
-    <ProjectCard
-      key={p.id}
-      project={{ ...p, description: p.description ?? "" }}
-      isOwner={user?.id === p.owner_id}
-      onDelete={(id) => setProjects((prev) => prev.filter((proj) => proj.id !== id))}
-    />
-  ))}
-</div>
+
+      {projects.length === 0 ? (
+        <p className="text-gray-400 text-base">You have no projects yet.</p>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {projects.map((p) => (
+            <ProjectCard
+              key={p.id}
+              project={{ ...p, description: p.description ?? "" }}
+              isOwner={user?.id === p.owner_id}
+              onDelete={(id) =>
+                setProjects((prev) => prev.filter((proj) => proj.id !== id))
+              }
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

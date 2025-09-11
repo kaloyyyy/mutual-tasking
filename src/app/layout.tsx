@@ -12,7 +12,10 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html lang="en">
       <body className="bg-gray-900 text-gray-100 min-h-screen">
         <Navbar />
-        <main className="p-6">{children}</main>
+        {/* Responsive padding: small on mobile, larger on desktop */}
+        <main className="px-4 py-6 sm:px-6 lg:px-20 lg:py-10">
+          {children}
+        </main>
       </body>
     </html>
   );
